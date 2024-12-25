@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { Search, LineChart, AlertTriangle, Loader2 } from 'lucide-react';
+import { LineChart, AlertTriangle, Loader2 } from 'lucide-react';
 import { TokenAnalysis } from './components/TokenAnalysis';
 import { SearchForm } from './components/SearchForm';
 
+interface Analysis {
+  market_data: any;
+  technical_analysis: any;
+  risk_metrics: any;
+}
+
 function App() {
-  const [tokenAddress, setTokenAddress] = useState('');
-  const [analysis, setAnalysis] = useState(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -13,11 +18,14 @@ function App() {
     setLoading(true);
     setError('');
     try {
+      console.log('Analyzing address:', address);
       const response = await fetch(`http://localhost:3000/analyze/${address}`);
       if (!response.ok) throw new Error('Analysis failed');
       const data = await response.json();
+      console.log('Received data:', data);
       setAnalysis(data);
     } catch (err) {
+      console.error('Analysis error:', err);
       setError('Failed to analyze token. Please check the address and try again.');
     } finally {
       setLoading(false);

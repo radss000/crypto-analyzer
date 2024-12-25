@@ -1,7 +1,8 @@
 import sys
 import json
 import asyncio
-from .crypto_analyzer import CryptoAnalyzer  # Changez ceci
+from datetime import datetime
+from crypto_analyzer import CryptoAnalyzer
 
 async def main():
     if len(sys.argv) != 2:
@@ -12,9 +13,13 @@ async def main():
     try:
         analyzer = CryptoAnalyzer(token_address)
         results = await analyzer.run_analysis()
+        # Only output the JSON result, no logs
         print(json.dumps(results))
     except Exception as e:
-        print(json.dumps({"error": str(e)}))
+        print(json.dumps({
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }))
         sys.exit(1)
 
 if __name__ == "__main__":
