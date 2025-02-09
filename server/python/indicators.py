@@ -1,83 +1,178 @@
-"""Technical indicators calculation utilities"""
+"""Technical indicators calculation with improved accuracy"""
 import numpy as np
 import pandas as pd
-from typing import Tuple, List
+from typing import Tuple, Dict, List
 
-def calculate_rsi(prices: np.ndarray, period: int = 14) -> np.ndarray:
-    """Calculate RSI with proper scaling"""
-    deltas = np.diff(prices)
-    seed = deltas[:period+1]
-    up = seed[seed >= 0].sum()/period
-    down = -seed[seed < 0].sum()/period
+def calculate_rsi(prices: np.ndarray, period: int = 14) -> float:
+    """
+    Calculate RSI with proper exponential weighting
     
-    if down == 0:
-        rs = np.inf
-    else:
-        rs = up/down
+    Args:
+        prices: Array of closing prices
+        period: RSI period (default 14)
+    """
+    # Calculate price changes
+    delta = np.diff(prices)
+    delta = np.append(delta, delta[-1])  # Append last value to maintain array size
     
-    rsi = np.zeros_like(prices)
-    rsi[:period] = 100. - 100./(1. + rs)
+    # Separate gains and losses
+    gains = np.where(delta > 0, delta, 0)
+    losses = np.where(delta < 0, -delta, 0)
+    
+    # Calculate average gains and losses
+    avg_gains = pd.Series(gains).ewm(alpha=1/period, min_periods=period).mean()
+    avg_losses = pd.Series(losses).ewm(alpha=1/period, min_periods=period).mean()
+    
+    # Calculate RS and RSI
+    rs = avg_gains / avg_losses
+    rsi = 100 - (100 / (1 + rs))
+    
+    return float(rsi.iloc[-1])
 
-    for i in range(period, len(prices)):
-        delta = deltas[i-1]
-        
-        if delta > 0:
-            upval = delta
-            downval = 0.
-        else:
-            upval = 0.
-            downval = -delta
+def calculate_macd(prices: np.ndarray, fast: int = 12, slow: int = 26, signal: int = 9) -> Dict[str, float]:
+    """
+    Calculate MACD with proper exponential moving averages
+    
+    Args:
+        prices: Array of closing prices
+        fast: Fast EMA period
+        slow: Slow EMA period
+        signal: Signal line period
+    """
+    # Calculate EMAs
+    fast_ema = pd.Series(prices).ewm(span=fast, adjust=False).mean()
+    slow_ema = pd.Series(prices).ewm(span=slow, adjust=False).mean()
+    
+    # Calculate MACD line
+    macd_line = fast_ema - slow_ema
+    
+    # Calculate signal line
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    
+    # Calculate histogram
+    histogram = macd_line - signal_line
+    
+    return {
+        'macd': float(macd_line.iloc[-1]),
+        'signal': float(signal_line.iloc[-1]),
+        'hist': float(histogram.iloc[-1])
+    }
 
-        up = (up*(period-1) + upval)/period
-        down = (down*(period-1) + downval)/period
-        
-        if down == 0:
-            rs = np.inf
-        else:
-            rs = up/down
-        
-        rsi[i] = 100. - 100./(1. + rs)
+def calculate_bollinger_bands(prices: np.ndarray, period: int = 20, std_dev: float = 2.0) -> Dict[str, float]:
+    """
+    Calculate Bollinger Bands with proper standard deviation
     
-    return rsi
-
-def calculate_macd(prices: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Calculate MACD with percentage values"""
-    # Convert to percentage changes
-    pct_changes = np.diff(prices) / prices[:-1]
-    pct_changes = np.insert(pct_changes, 0, 0)
-    
-    # Calculate EMAs on percentage changes
-    exp1 = pd.Series(pct_changes).ewm(span=12, adjust=False).mean()
-    exp2 = pd.Series(pct_changes).ewm(span=26, adjust=False).mean()
-    
-    macd = (exp1 - exp2) * 100  # Convert to percentage
-    signal = macd.ewm(span=9, adjust=False).mean()
-    hist = macd - signal
-    
-    return macd.to_numpy(), signal.to_numpy(), hist.to_numpy()
-
-def calculate_bollinger_bands(prices: np.ndarray, period: int = 20) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Calculate Bollinger Bands"""
-    if len(prices) < period:
-        return prices, prices, prices
-        
-    # Calculate on percentage changes
-    pct_changes = pd.Series(prices)
-    
+    Args:
+        prices: Array of closing prices
+        period: Moving average period
+        std_dev: Number of standard deviations
+    """
     # Calculate middle band (SMA)
-    middle = pct_changes.rolling(window=period, min_periods=1).mean()
+    middle_band = pd.Series(prices).rolling(window=period).mean()
     
     # Calculate standard deviation
-    std = pct_changes.rolling(window=period, min_periods=1).std()
+    rolling_std = pd.Series(prices).rolling(window=period).std()
     
     # Calculate upper and lower bands
-    upper = middle + (std * 2)
-    lower = middle - (std * 2)
+    upper_band = middle_band + (rolling_std * std_dev)
+    lower_band = middle_band - (rolling_std * std_dev)
     
-    return upper.to_numpy(), middle.to_numpy(), lower.to_numpy()
+    return {
+        'upper': float(upper_band.iloc[-1]),
+        'middle': float(middle_band.iloc[-1]),
+        'lower': float(lower_band.iloc[-1])
+    }
+
+def calculate_ema_signals(prices: np.ndarray) -> Dict[str, float]:
+    """
+    Calculate EMAs and their crossover signals
+    """
+    ema20 = pd.Series(prices).ewm(span=20, adjust=False).mean()
+    ema50 = pd.Series(prices).ewm(span=50, adjust=False).mean()
+    ema200 = pd.Series(prices).ewm(span=200, adjust=False).mean()
+    
+    return {
+        'EMA20': float(ema20.iloc[-1]),
+        'EMA50': float(ema50.iloc[-1]),
+        'EMA200': float(ema200.iloc[-1])
+    }
+
+def calculate_risk_score(
+    liquidity: float,
+    volume: float,
+    market_cap: float,
+    volatility: float,
+    buy_sell_ratio: float
+) -> float:
+    """
+    Calculate improved risk score based on multiple factors
+    
+    Args:
+        liquidity: Token liquidity in USD
+        volume: 24h trading volume in USD
+        market_cap: Token market capitalization
+        volatility: Price volatility (standard deviation)
+        buy_sell_ratio: Ratio of buys to sells
+    """
+    # Normalize metrics between 0 and 1
+    liquidity_score = min(liquidity / 100_000_000, 1)  # Cap at $100M
+    volume_score = min(volume / 10_000_000, 1)  # Cap at $10M
+    mcap_score = min(market_cap / 1_000_000_000, 1)  # Cap at $1B
+    volatility_score = 1 - min(volatility / 0.1, 1)  # Lower volatility = better
+    balance_score = 1 - abs(1 - buy_sell_ratio)  # 1.0 means equal buys/sells
+    
+    # Weighted average with emphasis on liquidity and market cap
+    weights = [0.3, 0.2, 0.25, 0.15, 0.1]
+    scores = [liquidity_score, volume_score, mcap_score, volatility_score, balance_score]
+    
+    # Higher score means lower risk
+    risk_score = 1 - np.average(scores, weights=weights)
+    
+    return float(min(max(risk_score, 0), 1))
+
+def calculate_confidence_score(
+    technical_signals: Dict,
+    risk_score: float,
+    price_momentum: float,
+    volatility: float
+) -> float:
+    """
+    Calculate improved confidence score
+    """
+    # Technical analysis weight
+    if technical_signals['summary']['total_signals'] == 0:
+        signal_score = 0.5
+    else:
+        buy_ratio = technical_signals['summary']['buy_signals'] / technical_signals['summary']['total_signals']
+        signal_score = buy_ratio
+    
+    # Momentum score normalized between 0 and 1
+    momentum_score = 0.5 + (price_momentum / 100)
+    momentum_score = min(max(momentum_score, 0), 1)
+    
+    # Volatility impact
+    volatility_factor = 1 - min(volatility / 0.1, 1)
+    
+    # Combine scores with dynamic weights
+    weights = [0.35, 0.25, 0.25, 0.15]  # Technical, risk, momentum, volatility
+    scores = [signal_score, 1 - risk_score, momentum_score, volatility_factor]
+    
+    confidence = np.average(scores, weights=weights)
+    
+    return float(min(max(confidence, 0), 1))
 
 def calculate_adx(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 14) -> np.ndarray:
-    """Calculate ADX (Average Directional Index)"""
+    """
+    Calculate ADX (Average Directional Index)
+    
+    Args:
+        high: Array of high prices
+        low: Array of low prices
+        close: Array of closing prices
+        period: ADX period (default 14)
+    Returns:
+        ADX values
+    """
     if len(close) < period + 1:
         return np.zeros_like(close)
         
@@ -89,25 +184,99 @@ def calculate_adx(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: 
     tr = np.maximum(tr, tr3)
     tr = np.insert(tr, 0, tr[0])
     
-    # Smooth True Range
-    atr = pd.Series(tr).rolling(window=period).mean().to_numpy()
+    # Calculate ATR (Average True Range)
+    atr = pd.Series(tr).ewm(span=period, adjust=False).mean()
     
-    # Directional Movement
-    up_move = high[1:] - high[:-1]
-    down_move = low[:-1] - low[1:]
+    # Calculate +DM and -DM (Directional Movement)
+    high_diff = high[1:] - high[:-1]
+    low_diff = low[:-1] - low[1:]
     
-    pos_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
-    neg_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+    pos_dm = np.where((high_diff > low_diff) & (high_diff > 0), high_diff, 0)
+    neg_dm = np.where((low_diff > high_diff) & (low_diff > 0), low_diff, 0)
     
     pos_dm = np.insert(pos_dm, 0, pos_dm[0])
     neg_dm = np.insert(neg_dm, 0, neg_dm[0])
     
-    # Smooth DM
-    pos_di = 100 * pd.Series(pos_dm).rolling(window=period).mean() / atr
-    neg_di = 100 * pd.Series(neg_dm).rolling(window=period).mean() / atr
+    # Calculate +DI and -DI (Directional Indicators)
+    pos_di = 100 * pd.Series(pos_dm).ewm(span=period, adjust=False).mean() / atr
+    neg_di = 100 * pd.Series(neg_dm).ewm(span=period, adjust=False).mean() / atr
+    
+    # Calculate DX (Directional Index)
+    dx = 100 * abs(pos_di - neg_di) / (pos_di + neg_di)
     
     # Calculate ADX
-    dx = 100 * abs(pos_di - neg_di) / (pos_di + neg_di)
-    adx = pd.Series(dx).rolling(window=period).mean().fillna(0).to_numpy()
+    adx = pd.Series(dx).ewm(span=period, adjust=False).mean()
     
-    return adx
+    return float(adx.iloc[-1])
+
+def get_trading_signals(
+    rsi: float,
+    macd_data: Dict[str, float],
+    bb_data: Dict[str, float],
+    ema_data: Dict[str, float],
+    current_price: float
+) -> Dict:
+    """
+    Generate comprehensive trading signals
+    """
+    signals = {
+        'buy': 0,
+        'sell': 0,
+        'neutral': 0
+    }
+    
+    # RSI signals
+    if rsi < 30:
+        signals['buy'] += 1
+    elif rsi > 70:
+        signals['sell'] += 1
+    else:
+        signals['neutral'] += 1
+    
+    # MACD signals
+    if macd_data['macd'] > macd_data['signal']:
+        signals['buy'] += 1
+    elif macd_data['macd'] < macd_data['signal']:
+        signals['sell'] += 1
+    else:
+        signals['neutral'] += 1
+    
+    # Bollinger Bands signals
+    if current_price < bb_data['lower']:
+        signals['buy'] += 1
+    elif current_price > bb_data['upper']:
+        signals['sell'] += 1
+    else:
+        signals['neutral'] += 1
+    
+    # EMA signals
+    if current_price > ema_data['EMA20'] > ema_data['EMA50']:
+        signals['buy'] += 1
+    elif current_price < ema_data['EMA20'] < ema_data['EMA50']:
+        signals['sell'] += 1
+    else:
+        signals['neutral'] += 1
+    
+    # Generate recommendation
+    total_signals = signals['buy'] + signals['sell'] + signals['neutral']
+    buy_strength = signals['buy'] / total_signals
+    sell_strength = signals['sell'] / total_signals
+    
+    if buy_strength > 0.6:
+        recommendation = 'STRONG_BUY'
+    elif buy_strength > 0.4:
+        recommendation = 'BUY'
+    elif sell_strength > 0.6:
+        recommendation = 'STRONG_SELL'
+    elif sell_strength > 0.4:
+        recommendation = 'SELL'
+    else:
+        recommendation = 'NEUTRAL'
+    
+    return {
+        'recommendation': recommendation,
+        'buy_signals': signals['buy'],
+        'sell_signals': signals['sell'],
+        'neutral_signals': signals['neutral'],
+        'total_signals': total_signals
+    }
