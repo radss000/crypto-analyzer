@@ -5,15 +5,16 @@ from datetime import datetime
 from crypto_analyzer import CryptoAnalyzer
 
 async def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print(json.dumps({"error": "Token address required"}))
         sys.exit(1)
 
     token_address = sys.argv[1]
+    chain = sys.argv[2] if len(sys.argv) > 2 else 'ethereum'  # Chaîne par défaut
+
     try:
-        analyzer = CryptoAnalyzer(token_address)
+        analyzer = CryptoAnalyzer(token_address, chain)
         results = await analyzer.run_analysis()
-        # Only output the JSON result, no logs
         print(json.dumps(results))
     except Exception as e:
         print(json.dumps({
