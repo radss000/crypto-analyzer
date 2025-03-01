@@ -13,7 +13,14 @@ console.log('Server starting...');
 console.log('Python path:', pythonPath);
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://crypto-analyzer-w46m2f2mp-radialhsn-gmailcoms-projects.vercel.app',
+    'http://localhost:5173'
+  ],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json());
 
 // API routes
