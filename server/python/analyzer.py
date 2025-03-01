@@ -3,43 +3,63 @@ import json
 import asyncio
 import traceback
 from datetime import datetime
-from crypto_analyzer import CryptoAnalyzer
+
+def log_debug(message):
+    """Log debug messages to stderr"""
+    print(f"DEBUG: {message}", file=sys.stderr)
+
+def log_error(message):
+    """Log error messages to stderr"""
+    print(f"ERROR: {message}", file=sys.stderr)
 
 async def main():
     try:
-        if len(sys.argv) != 2:
-            print(json.dumps({"error": "Token address required"}), file=sys.stderr)
-            sys.exit(1)
+        log_debug("Starting analyzer.py")
+        
+        if len(sys.argv) < 2:
+            raise ValueError("Token address required")
 
         token_address = sys.argv[1]
-        print(f"Starting analysis for token: {token_address}", file=sys.stderr)
+        chain = sys.argv[2] if len(sys.argv) > 2 else "ethereum"
         
-        analyzer = CryptoAnalyzer(token_address)
-        print("CryptoAnalyzer initialized", file=sys.stderr)
+        log_debug(f"Processing token: {token_address} on chain: {chain}")
         
+        from crypto_analyzer import CryptoAnalyzer
+        analyzer = CryptoAnalyzer(token_address, chain)
+        
+        log_debug("Running analysis...")
         results = await analyzer.run_analysis()
-        print("Analysis completed", file=sys.stderr)
+        log_debug("Analysis completed successfully")
         
-        # Print the result to stdout for the Node.js server
-        print(json.dumps(results))
+        # Formater la sortie JSON avec une précision maximale
+        formatted_results = {
+            "success": True,
+            "data": results,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Imprimer le JSON sur stdout sans logs supplémentaires
+        print(json.dumps(formatted_results))
         
     except Exception as e:
-        error_msg = {
+        error_data = {
+            "success": False,
             "error": str(e),
             "traceback": traceback.format_exc(),
             "timestamp": datetime.now().isoformat()
         }
-        print(json.dumps(error_msg, indent=2), file=sys.stderr)
+        print(json.dumps(error_data))
         sys.exit(1)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except Exception as e:
-        error_msg = {
+        error_data = {
+            "success": False,
             "error": f"Fatal error in main loop: {str(e)}",
             "traceback": traceback.format_exc(),
             "timestamp": datetime.now().isoformat()
         }
-        print(json.dumps(error_msg, indent=2), file=sys.stderr)
+        print(json.dumps(error_data))
         sys.exit(1)

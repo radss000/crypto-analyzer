@@ -130,36 +130,6 @@ def calculate_risk_score(
     
     return float(min(max(risk_score, 0), 1))
 
-def calculate_confidence_score(
-    technical_signals: Dict,
-    risk_score: float,
-    price_momentum: float,
-    volatility: float
-) -> float:
-    """
-    Calculate improved confidence score
-    """
-    # Technical analysis weight
-    if technical_signals['summary']['total_signals'] == 0:
-        signal_score = 0.5
-    else:
-        buy_ratio = technical_signals['summary']['buy_signals'] / technical_signals['summary']['total_signals']
-        signal_score = buy_ratio
-    
-    # Momentum score normalized between 0 and 1
-    momentum_score = 0.5 + (price_momentum / 100)
-    momentum_score = min(max(momentum_score, 0), 1)
-    
-    # Volatility impact
-    volatility_factor = 1 - min(volatility / 0.1, 1)
-    
-    # Combine scores with dynamic weights
-    weights = [0.35, 0.25, 0.25, 0.15]  # Technical, risk, momentum, volatility
-    scores = [signal_score, 1 - risk_score, momentum_score, volatility_factor]
-    
-    confidence = np.average(scores, weights=weights)
-    
-    return float(min(max(confidence, 0), 1))
 
 def calculate_adx(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 14) -> np.ndarray:
     """
@@ -256,11 +226,13 @@ def get_trading_signals(
         signals['sell'] += 1
     else:
         signals['neutral'] += 1
+
+    # Calculate total signals
+    total_signals = signals['buy'] + signals['sell'] + signals['neutral']
     
     # Generate recommendation
-    total_signals = signals['buy'] + signals['sell'] + signals['neutral']
-    buy_strength = signals['buy'] / total_signals
-    sell_strength = signals['sell'] / total_signals
+    buy_strength = signals['buy'] / total_signals if total_signals > 0 else 0
+    sell_strength = signals['sell'] / total_signals if total_signals > 0 else 0
     
     if buy_strength > 0.6:
         recommendation = 'STRONG_BUY'
@@ -278,5 +250,47 @@ def get_trading_signals(
         'buy_signals': signals['buy'],
         'sell_signals': signals['sell'],
         'neutral_signals': signals['neutral'],
-        'total_signals': total_signals
+        'total_signals': total_signals,
+        'summary': {
+            'recommendation': recommendation,
+            'buy_signals': signals['buy'],
+            'sell_signals': signals['sell'],
+            'neutral_signals': signals['neutral'],
+            'total_signals': total_signals
+        }
     }
+
+def calculate_confidence_score(
+    technical_signals: Dict,
+    risk_score: float,
+    price_momentum: float,
+    volatility: float
+) -> float:
+    """
+    Calculate improved confidence score
+    """
+    # Technical analysis weight
+    total_signals = (technical_signals.get('buy_signals', 0) + 
+                    technical_signals.get('sell_signals', 0) + 
+                    technical_signals.get('neutral_signals', 0))
+    
+    if total_signals == 0:
+        signal_score = 0.5
+    else:
+        buy_ratio = technical_signals.get('buy_signals', 0) / total_signals
+        signal_score = buy_ratio
+    
+    # Momentum score normalized between 0 and 1
+    momentum_score = 0.5 + (price_momentum / 100)
+    momentum_score = min(max(momentum_score, 0), 1)
+    
+    # Volatility impact
+    volatility_factor = 1 - min(volatility / 0.1, 1)
+    
+    # Combine scores with dynamic weights
+    weights = [0.35, 0.25, 0.25, 0.15]  # Technical, risk, momentum, volatility
+    scores = [signal_score, 1 - risk_score, momentum_score, volatility_factor]
+    
+    confidence = np.average(scores, weights=weights)
+    
+    return float(min(max(confidence, 0), 1))
