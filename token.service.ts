@@ -51,12 +51,12 @@ export interface TokenAnalysisResult {
 }
 
 class TokenService {
-  private readonly API_URL = 'VITE_API_URL';
+  VITE_API_URL = 'VITE_API_URL';
 
   async analyzeToken(address: string, chain: string = 'ethereum'): Promise<TokenAnalysisResult> {
     try {
       const response = await axios.get<TokenAnalysisResult>(
-        `${this.API_URL}/analyze/${address}`,
+        `${this.VITE_API_URL}/analyze/${address}`,
         {
           params: { chain }
         }
