@@ -66,8 +66,8 @@ app.get('/analyze/:address', async (req, res) => {
     // Options configuration for PythonShell
     const options = {
       mode: 'text',
-      pythonPath: 'python3', // Make sure this matches your system's Python path
-      scriptPath: pythonPath,
+      pythonPath: 'python3',
+      scriptPath: path.join(__dirname, 'python'),
       args: [address, chain]
     };
     
