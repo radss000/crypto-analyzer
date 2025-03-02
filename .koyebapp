@@ -1,4 +1,1 @@
-build:
-  dockerfile: Dockerfile
-run:
-  port: 8000
+web: npm start
