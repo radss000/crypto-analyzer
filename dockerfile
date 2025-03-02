@@ -1,26 +1,25 @@
-FROM node:18
-
-# Install Python
-RUN apt-get update && apt-get install -y python3 python3-pip
+# Use a base image with both Node.js and Python
+FROM nikolaik/python-nodejs:python3.9-nodejs18
 
 # Set working directory
 WORKDIR /app
 
-# Copy and install dependencies
+# Copy package files and install Node dependencies
 COPY package*.json ./
 RUN npm install
 
-COPY server/python/requirements.txt ./server/python/
-RUN pip3 install -r server/python/requirements.txt
+# Copy Python requirements and install Python dependencies
+COPY server/python/requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt
 
-# Copy application code
+# Copy the rest of the application
 COPY . .
 
-# Build application
+# Build the React application
 RUN npm run build
 
-# Expose port
+# Expose the port the app will run on
 EXPOSE 8000
 
-# Start application
+# Command to run the application
 CMD ["node", "server/index.js"]

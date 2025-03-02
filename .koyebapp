@@ -1,7 +1,6 @@
-build:
-  runtime: nodejs18
-  command: npm install && pip install -r requirements.txt && npm run build
-run:
-  runtime: nodejs18
-  command: node server/index.js
-  port: 8000
+app:
+  build:
+    type: dockerfile
+    path: Dockerfile
+  run:
+    port: 8000
