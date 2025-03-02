@@ -1,31 +1,26 @@
-FROM node:18-slim
+FROM node:18
 
-# Install Python and pip
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install Python
+RUN apt-get update && apt-get install -y python3 python3-pip
 
+# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy and install dependencies
 COPY package*.json ./
-
-# Install Node dependencies
 RUN npm install
 
-# Copy Python requirements and install Python dependencies
 COPY server/python/requirements.txt ./server/python/
 RUN pip3 install -r server/python/requirements.txt
 
-# Copy the rest of the application
+# Copy application code
 COPY . .
 
-# Build the frontend
+# Build application
 RUN npm run build
 
-# Expose the port
+# Expose port
 EXPOSE 8000
 
-# Start the application
+# Start application
 CMD ["node", "server/index.js"]
