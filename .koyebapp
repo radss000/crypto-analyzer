@@ -1,5 +1,4 @@
 build:
-  command: npm install && pip install -r requirements.txt && npm run build
+  dockerfile: Dockerfile
 run:
-  command: npm start
   port: 8000
