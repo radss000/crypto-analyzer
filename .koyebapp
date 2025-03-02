@@ -1,1 +1,7 @@
-web: npm start
+build:
+  runtime: nodejs18
+  command: npm install && pip install -r server/python/requirements.txt && npm run build
+run:
+  runtime: nodejs18
+  command: node server/index.js
+  port: 8000
