@@ -11,6 +11,14 @@ def calculate_rsi(prices: np.ndarray, period: int = 14) -> float:
         prices: Array of closing prices
         period: RSI period (default 14)
     """
+    # Handle not enough data
+    if len(prices) < period + 1:
+        return 50.0  # Return neutral value
+        
+    # Check for constant values (no price change)
+    if np.all(prices == prices[0]):
+        return 50.0  # Return neutral value
+        
     # Calculate price changes
     delta = np.diff(prices)
     delta = np.append(delta, delta[-1])  # Append last value to maintain array size
@@ -19,15 +27,21 @@ def calculate_rsi(prices: np.ndarray, period: int = 14) -> float:
     gains = np.where(delta > 0, delta, 0)
     losses = np.where(delta < 0, -delta, 0)
     
+    # Check if all changes are gains or all are losses
+    if np.all(losses == 0):
+        return 100.0  # All price movements are up
+    elif np.all(gains == 0):
+        return 0.0    # All price movements are down
+    
     # Calculate average gains and losses
     avg_gains = pd.Series(gains).ewm(alpha=1/period, min_periods=period).mean()
     avg_losses = pd.Series(losses).ewm(alpha=1/period, min_periods=period).mean()
     
-    # Calculate RS and RSI
-    rs = avg_gains / avg_losses
+    # Calculate RS and RSI (handle division by zero)
+    rs = avg_gains.iloc[-1] / max(avg_losses.iloc[-1], 0.0001)  # Avoid division by zero
     rsi = 100 - (100 / (1 + rs))
     
-    return float(rsi.iloc[-1])
+    return float(rsi)
 
 def calculate_macd(prices: np.ndarray, fast: int = 12, slow: int = 26, signal: int = 9) -> Dict[str, float]:
     """

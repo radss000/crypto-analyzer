@@ -5,7 +5,7 @@ export interface TokenAnalysisResult {
 }
 
 class TokenService {
-  private readonly API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  private readonly API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   async analyzeToken(address: string, chain: string = 'ethereum'): Promise<TokenAnalysisResult> {
     try {

@@ -2,6 +2,7 @@ import sys
 import json
 import asyncio
 import traceback
+import numpy as np
 from datetime import datetime
 
 def log_debug(message):
@@ -38,8 +39,19 @@ async def main():
             "timestamp": datetime.now().isoformat()
         }
         
+        # Handle NaN and Infinity values for JSON serialization
+        def json_serializer(obj):
+            if isinstance(obj, float):
+                if np.isnan(obj):
+                    return "NaN"
+                elif np.isinf(obj) and obj > 0:
+                    return "Infinity"
+                elif np.isinf(obj) and obj < 0:
+                    return "-Infinity"
+            return obj
+        
         # Imprimer le JSON sur stdout sans logs supplémentaires
-        print(json.dumps(formatted_results))
+        print(json.dumps(formatted_results, default=json_serializer))
         
     except Exception as e:
         error_data = {

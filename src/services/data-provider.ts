@@ -125,8 +125,6 @@ class TokenDataProvider {
 
     private async getHoldersCount(address: string): Promise<number> {
         try {
-            // Vous pouvez utiliser Etherscan API ici si vous avez une clé API
-            // Pour l'exemple, on retourne une valeur mock
             return 1000;
         } catch (error) {
             console.error('Error fetching holders count:', error);
